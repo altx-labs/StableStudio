@@ -65,6 +65,9 @@ export type PluginSettingCommon = {
 
   /** Is this setting required? If so, users will be forced to provide an input */
   required?: boolean;
+
+  /** If true the setting is displayed as read-only text */
+  readOnly?: boolean;
 };
 
 /** `PluginSetting` allows for `string`, `number`, and `boolean` input types   */

@@ -46,13 +46,17 @@ export function Setting({
         />
       )}
       {setting.type === "string" && !setting.options && (
-        <Theme.Input
-          placeholder={setting.placeholder}
-          // TODO: Fix this
-          value={value}
-          onChange={onSet}
-          type={setting.password ? "password" : "text"}
-        />
+        setting.readOnly ? (
+          <Theme.Label className="mx-0">{value}</Theme.Label>
+        ) : (
+          <Theme.Input
+            placeholder={setting.placeholder}
+            // TODO: Fix this
+            value={value}
+            onChange={onSet}
+            type={setting.password ? "password" : "text"}
+          />
+        )
       )}
       {setting.type === "number" &&
         (setting.variant === "input" || !setting.variant) && (

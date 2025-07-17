@@ -574,6 +574,7 @@ export const createPlugin = StableStudio.createPlugin<{
             placeholder: undefined,
             password: false,
             formatter: (value: string) => value, // Keep it as-is (masked)
+            readOnly: true,
           }
         : {
             type: "string",
