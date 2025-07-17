@@ -23,8 +23,8 @@ const maskApiKey = (apiKey: string): string => {
 
 // Get API key from environment variables with fallback to localStorage
 const getApiKey = (): { value: string | undefined; fromEnv: boolean } => {
-  // Check for environment variables (Node.js/Electron vs Vite/React)
-  const envKey = process.env.STABILITY_API_KEY || (import.meta as any)?.env?.VITE_STABILITY_API_KEY;
+  // Check for VITE_STABILITY_API_KEY environment variable
+  const envKey = (import.meta as any)?.env?.VITE_STABILITY_API_KEY;
   
   if (envKey) {
     return { value: envKey, fromEnv: true };
@@ -568,7 +568,7 @@ export const createPlugin = StableStudio.createPlugin<{
         ? {
             type: "string",
             title: "API key",
-            description: "API key is set via environment variable (STABILITY_API_KEY or VITE_STABILITY_API_KEY)",
+            description: "API key is set via environment variable (VITE_STABILITY_API_KEY)",
             value: maskApiKey(apiKeyValue!),
             required: true,
             placeholder: undefined,
