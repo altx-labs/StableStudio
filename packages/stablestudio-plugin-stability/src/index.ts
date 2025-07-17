@@ -11,41 +11,53 @@ import {
   Struct,
 } from "./Proto";
 
+// Type declaration for import.meta.env
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+
+  interface ImportMetaEnv {
+    readonly VITE_STABILITY_API_KEY?: string;
+  }
+}
+
 // Utility function to mask API key for display
 const maskApiKey = (apiKey: string): string => {
   if (apiKey.length <= 9) {
     // If key is too short, mask everything except first and last char
-    return apiKey.charAt(0) + "*".repeat(Math.max(apiKey.length - 2, 0)) + (apiKey.length > 1 ? apiKey.charAt(apiKey.length - 1) : "");
+    return (
+      apiKey.charAt(0) +
+      "*".repeat(Math.max(apiKey.length - 2, 0)) +
+      (apiKey.length > 1 ? apiKey.charAt(apiKey.length - 1) : "")
+    );
   }
   // Show first 6 characters, then *, then last 3 characters
-  return apiKey.substring(0, 6) + "*".repeat(apiKey.length - 9) + apiKey.substring(apiKey.length - 3);
+  return (
+    apiKey.substring(0, 6) +
+    "*".repeat(apiKey.length - 9) +
+    apiKey.substring(apiKey.length - 3)
+  );
 };
 
 // Get API key from environment variables with fallback to localStorage
 const getApiKey = (): { value: string | undefined; fromEnv: boolean } => {
-  // Check for VITE_STABILITY_API_KEY environment variable
-  // In Vite, environment variables are available via import.meta.env
+  // Access the environment variable directly (Vite will replace this with the actual value during build)
   let envKey: string | undefined;
-  
-  // Check if we're in a Vite environment and can access import.meta.env
-  if (typeof window !== 'undefined' && (window as any).__VITE_ENV__) {
-    // If Vite has injected env vars into window
-    envKey = (window as any).__VITE_ENV__.VITE_STABILITY_API_KEY;
-  } else {
-    // Try to access via import.meta.env (wrapped in try-catch for TypeScript compatibility)
-    try {
-      // @ts-ignore - TypeScript might complain about import.meta in some configurations
-      envKey = import.meta?.env?.VITE_STABILITY_API_KEY;
-    } catch (e) {
-      // Fallback - this will be undefined if import.meta is not available
-      envKey = undefined;
-    }
+
+  try {
+    // Direct access to import.meta.env - Vite's define option will replace this
+    envKey = import.meta.env.VITE_STABILITY_API_KEY;
+  } catch (e) {
+    // Fallback - this will be undefined if import.meta is not available
+    envKey = undefined;
   }
-  
-  if (envKey) {
+
+  // Check if envKey has a meaningful value (not empty string)
+  if (envKey && envKey.trim() !== "") {
     return { value: envKey, fromEnv: true };
   }
-  
+
   // Fallback to localStorage
   const localStorageKey = localStorage.getItem("stability-apiKey");
   return { value: localStorageKey ?? undefined, fromEnv: false };
@@ -83,7 +95,7 @@ export const createPlugin = StableStudio.createPlugin<{
 }>(({ context, set }) => {
   // Get API key dynamically to ensure environment variables are properly loaded
   const getCurrentApiKey = () => getApiKey();
-  
+
   const functionsWhichNeedAPIKey = (
     apiKey?: string
   ): Pick<
@@ -588,7 +600,8 @@ export const createPlugin = StableStudio.createPlugin<{
         ? {
             type: "string",
             title: "API key",
-            description: "API key is set via environment variable (VITE_STABILITY_API_KEY)",
+            description:
+              "API key is set via environment variable (VITE_STABILITY_API_KEY)",
             value: maskApiKey(apiKeyValue!),
             required: true,
             placeholder: undefined,
@@ -610,7 +623,7 @@ export const createPlugin = StableStudio.createPlugin<{
     setSetting: (key, value) => {
       // Check if API key is currently from environment variable
       const { fromEnv: currentFromEnv } = getCurrentApiKey();
-      
+
       // If API key is from environment variable, don't allow changes
       if (key === "apiKey" && currentFromEnv) {
         // Optionally, we could show a warning or just ignore the setting
