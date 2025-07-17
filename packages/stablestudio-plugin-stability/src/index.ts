@@ -24,14 +24,31 @@ const maskApiKey = (apiKey: string): string => {
 // Get API key from environment variables with fallback to localStorage
 const getApiKey = (): { value: string | undefined; fromEnv: boolean } => {
   // Check for VITE_STABILITY_API_KEY environment variable
-  const envKey = (import.meta as any)?.env?.VITE_STABILITY_API_KEY;
+  // In Vite, environment variables are available via import.meta.env
+  let envKey: string | undefined;
+  
+  // Check if we're in a Vite environment and can access import.meta.env
+  if (typeof window !== 'undefined' && (window as any).__VITE_ENV__) {
+    // If Vite has injected env vars into window
+    envKey = (window as any).__VITE_ENV__.VITE_STABILITY_API_KEY;
+  } else {
+    // Try to access via import.meta.env (wrapped in try-catch for TypeScript compatibility)
+    try {
+      // @ts-ignore - TypeScript might complain about import.meta in some configurations
+      envKey = import.meta?.env?.VITE_STABILITY_API_KEY;
+    } catch (e) {
+      // Fallback - this will be undefined if import.meta is not available
+      envKey = undefined;
+    }
+  }
   
   if (envKey) {
     return { value: envKey, fromEnv: true };
   }
   
   // Fallback to localStorage
-  return { value: localStorage.getItem("stability-apiKey") ?? undefined, fromEnv: false };
+  const localStorageKey = localStorage.getItem("stability-apiKey");
+  return { value: localStorageKey ?? undefined, fromEnv: false };
 };
 
 const getStableDiffusionDefaultCount = () => 4;
@@ -64,7 +81,8 @@ export const createPlugin = StableStudio.createPlugin<{
     apiKey: StableStudio.PluginSettingString;
   };
 }>(({ context, set }) => {
-  const { value: apiKeyValue, fromEnv: apiKeyFromEnv } = getApiKey();
+  // Get API key dynamically to ensure environment variables are properly loaded
+  const getCurrentApiKey = () => getApiKey();
   
   const functionsWhichNeedAPIKey = (
     apiKey?: string
@@ -457,6 +475,8 @@ export const createPlugin = StableStudio.createPlugin<{
     };
   };
 
+  const { value: apiKeyValue, fromEnv: apiKeyFromEnv } = getCurrentApiKey();
+
   return {
     ...functionsWhichNeedAPIKey(apiKeyValue),
 
@@ -588,8 +608,11 @@ export const createPlugin = StableStudio.createPlugin<{
     },
 
     setSetting: (key, value) => {
+      // Check if API key is currently from environment variable
+      const { fromEnv: currentFromEnv } = getCurrentApiKey();
+      
       // If API key is from environment variable, don't allow changes
-      if (key === "apiKey" && apiKeyFromEnv) {
+      if (key === "apiKey" && currentFromEnv) {
         // Optionally, we could show a warning or just ignore the setting
         return;
       }
