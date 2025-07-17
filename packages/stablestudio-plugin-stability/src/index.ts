@@ -11,6 +11,29 @@ import {
   Struct,
 } from "./Proto";
 
+// Utility function to mask API key for display
+const maskApiKey = (apiKey: string): string => {
+  if (apiKey.length <= 9) {
+    // If key is too short, mask everything except first and last char
+    return apiKey.charAt(0) + "*".repeat(Math.max(apiKey.length - 2, 0)) + (apiKey.length > 1 ? apiKey.charAt(apiKey.length - 1) : "");
+  }
+  // Show first 6 characters, then *, then last 3 characters
+  return apiKey.substring(0, 6) + "*".repeat(apiKey.length - 9) + apiKey.substring(apiKey.length - 3);
+};
+
+// Get API key from environment variables with fallback to localStorage
+const getApiKey = (): { value: string | undefined; fromEnv: boolean } => {
+  // Check for environment variables (Node.js/Electron vs Vite/React)
+  const envKey = process.env.STABILITY_API_KEY || (import.meta as any)?.env?.VITE_STABILITY_API_KEY;
+  
+  if (envKey) {
+    return { value: envKey, fromEnv: true };
+  }
+  
+  // Fallback to localStorage
+  return { value: localStorage.getItem("stability-apiKey") ?? undefined, fromEnv: false };
+};
+
 const getStableDiffusionDefaultCount = () => 4;
 const getStableDiffusionDefaultInputFromPrompt = (prompt: string) => ({
   prompts: [
@@ -41,6 +64,8 @@ export const createPlugin = StableStudio.createPlugin<{
     apiKey: StableStudio.PluginSettingString;
   };
 }>(({ context, set }) => {
+  const { value: apiKeyValue, fromEnv: apiKeyFromEnv } = getApiKey();
+  
   const functionsWhichNeedAPIKey = (
     apiKey?: string
   ): Pick<
@@ -433,9 +458,7 @@ export const createPlugin = StableStudio.createPlugin<{
   };
 
   return {
-    ...functionsWhichNeedAPIKey(
-      localStorage.getItem("stability-apiKey") ?? undefined
-    ),
+    ...functionsWhichNeedAPIKey(apiKeyValue),
 
     getStableDiffusionSamplers: () => [
       { id: "0", name: "DDIM" },
@@ -541,22 +564,36 @@ export const createPlugin = StableStudio.createPlugin<{
       ),
 
     settings: {
-      apiKey: {
-        type: "string",
-
-        title: "API key",
-        description:
-          "You can find your Stability API key at https://dreamstudio.ai/account",
-
-        placeholder: "sk-...",
-        required: true,
-        password: true,
-
-        value: localStorage.getItem("stability-apiKey") ?? "",
-      },
+      apiKey: apiKeyFromEnv
+        ? {
+            type: "string",
+            title: "API key",
+            description: "API key is set via environment variable (STABILITY_API_KEY or VITE_STABILITY_API_KEY)",
+            value: maskApiKey(apiKeyValue!),
+            required: true,
+            placeholder: undefined,
+            password: false,
+            formatter: (value: string) => value, // Keep it as-is (masked)
+          }
+        : {
+            type: "string",
+            title: "API key",
+            description:
+              "You can find your Stability API key at https://dreamstudio.ai/account",
+            placeholder: "sk-...",
+            required: true,
+            password: true,
+            value: apiKeyValue || "",
+          },
     },
 
     setSetting: (key, value) => {
+      // If API key is from environment variable, don't allow changes
+      if (key === "apiKey" && apiKeyFromEnv) {
+        // Optionally, we could show a warning or just ignore the setting
+        return;
+      }
+
       set(({ settings }) => ({
         settings: {
           ...settings,
